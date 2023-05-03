@@ -1,4 +1,4 @@
 .env
 .idea
-/.lib/
+/lib/
 /node_modules/
