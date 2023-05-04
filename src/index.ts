@@ -1,36 +1,18 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT License.
-
 import * as path from 'path';
-
 import {config} from 'dotenv';
-
-const ENV_FILE = path.join(__dirname, '..', '.env');
-config({path: ENV_FILE});
-
 import * as restify from 'restify';
-
 import {INodeSocket} from 'botframework-streaming';
+import {CloudAdapter, ConfigurationBotFrameworkAuthentication, ConfigurationBotFrameworkAuthenticationOptions} from 'botbuilder';
+import {ChatBot} from './bot';
 
-// Import required bot services.
-// See https://aka.ms/bot-services to learn more about the different parts of a bot.
-import {
-    CloudAdapter,
-    ConfigurationServiceClientCredentialFactory,
-    ConfigurationBotFrameworkAuthentication,
-    ConfigurationBotFrameworkAuthenticationOptions
-} from 'botbuilder';
-
-// This bot's main dialog.
-import {EchoBot} from './bot';
+config({path: path.join(__dirname, '..', '.env')});
 
 // Create HTTP server.
 const server = restify.createServer();
 server.use(restify.plugins.bodyParser());
+
 server.listen(process.env.port || process.env.PORT || 3978, () => {
     console.log(`\n${server.name} listening to ${server.url}`);
-    console.log('\nGet Bot Framework Emulator: https://aka.ms/botframework-emulator');
-    console.log('\nTo talk to your bot, open the emulator select "Open Bot"');
 });
 
 const botFrameworkAuthentication = new ConfigurationBotFrameworkAuthentication(process.env as ConfigurationBotFrameworkAuthenticationOptions);
@@ -45,6 +27,7 @@ const onTurnErrorHandler = async (context, error) => {
     // NOTE: In production environment, you should consider logging this to Azure
     //       application insights.
     console.error(`\n [onTurnError] unhandled error: ${error}`);
+    console.log(context)
 
     // Send a trace activity, which will be displayed in Bot Framework Emulator
     await context.sendTraceActivity(
@@ -63,12 +46,12 @@ const onTurnErrorHandler = async (context, error) => {
 adapter.onTurnError = onTurnErrorHandler;
 
 // Create the main dialog.
-const myBot = new EchoBot();
+const bot = new ChatBot();
 
 // Listen for incoming requests.
-server.post('/api/messages', async (req, res, next) => {
+server.post('/api/messages', async (req, res) => {
     // Route received a request to adapter for processing
-    await adapter.process(req, res, (context) => myBot.run(context));
+    await adapter.process(req, res, (context) => bot.run(context));
 });
 
 // Listen for Upgrade requests for Streaming.
@@ -79,5 +62,5 @@ server.on('upgrade', async (req, socket, head) => {
     // Set onTurnError for the CloudAdapter created for each connection.
     streamingAdapter.onTurnError = onTurnErrorHandler;
 
-    await streamingAdapter.process(req, socket as unknown as INodeSocket, head, (context) => myBot.run(context));
+    await streamingAdapter.process(req, socket as unknown as INodeSocket, head, (context) => bot.run(context));
 });
